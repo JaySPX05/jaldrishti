@@ -16,7 +16,15 @@ Run locally:
     uvicorn main:app --reload
     # then open http://127.0.0.1:8000/docs for interactive API docs
 """
+from fastapi import FastAPI
 
+from mock_data import SYNTHETIC_ROAD_GRAPH
+from routing import (
+    apply_traffic_to_graph,
+    dijkstra,
+    get_route_edges,
+)
+from traffic_service import get_live_traffic
 from datetime import datetime, timezone
 from typing import Optional
 
