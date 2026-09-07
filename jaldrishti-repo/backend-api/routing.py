@@ -100,3 +100,67 @@ def get_route_edges(route):
         (route[index], route[index + 1])
         for index in range(len(route) - 1)
     ]
+def kmph_to_mps(speed_kmph):
+    return speed_kmph * 1000 / 3600
+
+
+def calculate_travel_time_seconds(
+    distance_meters,
+    speed_kmph,
+):
+    """
+    Converts road distance and current traffic speed
+    into a Dijkstra edge weight in seconds.
+    """
+    safe_speed_kmph = max(speed_kmph, 5)
+
+    speed_mps = kmph_to_mps(safe_speed_kmph)
+
+    return distance_meters / speed_mps
+
+
+def apply_traffic_to_graph(
+    graph,
+    traffic_by_edge,
+    default_speed_kmph=30,
+):
+    """
+    Makes a new graph whose edge weights are travel times in seconds.
+
+    Example traffic_by_edge:
+    {
+        ("B", "D"): {
+            "current_speed_kmph": 10,
+            "road_closure": False
+        }
+    }
+    """
+    updated_graph = {}
+
+    for source, edges in graph.items():
+        updated_graph[source] = []
+
+        for destination, distance_meters in edges:
+            traffic = traffic_by_edge.get(
+                (source, destination),
+                {},
+            )
+
+            if traffic.get("road_closure", False):
+                continue
+
+            speed_kmph = traffic.get(
+                "current_speed_kmph",
+                default_speed_kmph,
+            )
+
+            travel_time_seconds = calculate_travel_time_seconds(
+                distance_meters,
+                speed_kmph,
+            )
+
+            updated_graph[source].append(
+                (destination, travel_time_seconds)
+            )
+
+    return updated_graph
