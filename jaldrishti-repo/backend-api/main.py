@@ -1,12 +1,19 @@
 """
 JalDrishti Backend — Risk API + Routing API
 
+DECISION (this build): real data from Pair 1 will not arrive in time.
+Shipping on synthetic data from data-pipeline/generate_synthetic_lookup.py,
+served via data_loader.py. This is the actual dataset for the demo, not a
+placeholder — treat it accordingly.
+
+If real data arrives later: drop the real file at
+data/processed/risk_lookup_<ward_id>.json, matching
+contracts/risk-lookup-table-format.md. Nothing in this file changes.
+
 Run locally:
     pip install -r requirements.txt
-    python -m uvicorn main:app --reload
-
-Then open:
-    http://127.0.0.1:8000/docs
+    uvicorn main:app --reload
+    # then open http://127.0.0.1:8000/docs for interactive API docs
 """
 
 from datetime import datetime, timezone
@@ -16,24 +23,13 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-import mock_data
+import data_loader
+import routing
 
-from mock_data import SYNTHETIC_ROAD_GRAPH
-from routing import (
-    apply_traffic_to_graph,
-    dijkstra,
-    get_route_edges,
-)
-from traffic_service import (
-    get_demo_traffic,
-    get_live_traffic,
-)
+app = FastAPI(title="JalDrishti Risk API", version="1.0.0")
 
-app = FastAPI(
-    title="JalDrishti Risk API",
-    version="1.0.0",
-)
-
+# Allow the frontend dev server to call this API from a different port/origin.
+# Tighten this before any real deployment.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -43,12 +39,14 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------------
-# API response models
+# Response models — these mirror contracts/risk-api-schema.json exactly.
+# If you change a field here, you MUST update the contract file too and
+# tell the team, per the contract rule in the git workflow doc.
 # ---------------------------------------------------------------------------
 
 class RiskSegment(BaseModel):
     segment_id: str
-    geometry: list[list[float]]
+    geometry: list[list[float]]  # [[lng, lat], [lng, lat], ...]
     risk_score: float
     predicted_depth_cm: Optional[float] = None
     confidence: Optional[float] = None
@@ -67,54 +65,32 @@ class RouteResponse(BaseModel):
     risk_penalty_applied: bool
 
 
-# ---------------------------------------------------------------------------
-# Health check
-# ---------------------------------------------------------------------------
-
 @app.get("/")
 def health_check():
-    return {
-        "status": "ok",
-        "service": "jaldrishti-backend",
-    }
+    return {"status": "ok", "service": "jaldrishti-backend"}
 
-
-# ---------------------------------------------------------------------------
-# Risk API
-# ---------------------------------------------------------------------------
 
 @app.get("/api/v1/risk", response_model=RiskResponse)
 def get_risk(
-    ward_id: str = Query(
-        ...,
-        description="Example: koramangala",
-    ),
+    ward_id: str = Query(..., description="e.g. 'koramangala'"),
     timestamp: Optional[str] = Query(
-        None,
-        description="ISO8601. Defaults to current UTC time.",
+        None, description="ISO8601. Defaults to now if omitted."
     ),
 ):
     """
-    Returns flood-risk values for road segments in one ward.
-
-    Currently this reads mock data from mock_data.py.
-    Pair 1 can later connect real risk predictions without changing
-    this response format.
+    Returns risk scores for every street segment in a ward at a given timestep,
+    read from the synthetic dataset via data_loader.py. If real data lands
+    later, it's served from the exact same path with no code change here.
     """
     ts = timestamp or datetime.now(timezone.utc).isoformat()
 
-    segments = mock_data.get_risk_segments(
-        ward_id,
-        ts,
-    )
-
+    segments = data_loader.get_risk_segments(ward_id, ts)
     if segments is None:
         raise HTTPException(
             status_code=404,
-            detail=(
-                f"No data for ward_id='{ward_id}'. "
-                f"Known wards: {mock_data.KNOWN_WARDS}"
-            ),
+            detail=f"No data for ward_id='{ward_id}'. "
+                   f"Known wards: {data_loader.known_wards()}. "
+                   f"Generate one: python data-pipeline/generate_synthetic_lookup.py {ward_id}",
         )
 
     return RiskResponse(
@@ -125,180 +101,31 @@ def get_risk(
     )
 
 
-# ---------------------------------------------------------------------------
-# Frontend route API
-# Do not change this response structure without informing the team.
-# ---------------------------------------------------------------------------
-
 @app.get("/api/v1/route", response_model=RouteResponse)
 def get_route(
-    from_lng: float = Query(...),
-    from_lat: float = Query(...),
-    to_lng: float = Query(...),
-    to_lat: float = Query(...),
+    from_lng: float = Query(..., alias="from_lng"),
+    from_lat: float = Query(..., alias="from_lat"),
+    to_lng: float = Query(..., alias="to_lng"),
+    to_lat: float = Query(..., alias="to_lat"),
     ward_id: str = Query(...),
 ):
     """
-    Returns the currently required frontend route shape.
+    Risk-weighted routing. The graph-building and Dijkstra logic live in
+    routing.py so the routing person can work on that file independently
+    from the risk-endpoint / data-integration side of this file.
 
-    Right now this gives a direct route line between two points.
-    Later, replace this stub with real OSM + Dijkstra routing while
-    keeping the RouteResponse structure the same.
+    Day 1: uses routing.build_synthetic_graph() + mock risk scores.
+    Day 2: swap for Pair 1's real OSM extract of the pilot ward.
     """
-    if ward_id not in mock_data.KNOWN_WARDS:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                f"Unknown ward_id='{ward_id}'. "
-                f"Known wards: {mock_data.KNOWN_WARDS}"
-            ),
-        )
+    center = data_loader.WARD_CENTERS.get(ward_id.lower())
+    if center is None:
+        raise HTTPException(status_code=404, detail=f"Unknown ward_id: {ward_id}")
 
-    return RouteResponse(
-        path=[
-            [from_lng, from_lat],
-            [to_lng, to_lat],
-        ],
-        avoided_segments=[],
-        risk_penalty_applied=False,
-    )
+    graph = routing.build_synthetic_graph(*center)
+    # Fake per-edge risk so the weighting logic is demonstrably working
+    # before Pair 1's real segment-to-edge mapping exists.
+    fake_risk = {f"edge_{i}": (i % 4) / 4 for i in range(graph.number_of_edges())}
+    routing.apply_risk_scores(graph, fake_risk)
 
-
-# ---------------------------------------------------------------------------
-# Basic Dijkstra demonstration
-# ---------------------------------------------------------------------------
-
-@app.get("/api/v1/routing/demo")
-def get_routing_demo():
-    """
-    Calculates the shortest route in the synthetic road graph.
-
-    Expected route:
-    A -> C -> B -> D -> E -> F
-    """
-    route, distance_meters = dijkstra(
-        graph=SYNTHETIC_ROAD_GRAPH,
-        start="A",
-        goal="F",
-    )
-
-    return {
-        "route_found": route is not None,
-        "route": route,
-        "route_edges": get_route_edges(route),
-        "distance_meters": distance_meters,
-        "routing_algorithm": "Dijkstra",
-    }
-
-
-# ---------------------------------------------------------------------------
-# Avoided-segment demonstration
-# ---------------------------------------------------------------------------
-
-@app.get("/api/v1/routing/avoid-demo")
-def get_avoidance_demo():
-    """
-    Blocks B <-> D and returns a new route.
-
-    In the real project this represents a flooded, unsafe, blocked,
-    or closed road segment.
-    """
-    normal_route, normal_distance = dijkstra(
-        graph=SYNTHETIC_ROAD_GRAPH,
-        start="A",
-        goal="F",
-    )
-
-    rerouted_path, rerouted_distance = dijkstra(
-        graph=SYNTHETIC_ROAD_GRAPH,
-        start="A",
-        goal="F",
-        blocked_edges={
-            ("B", "D"),
-            ("D", "B"),
-        },
-    )
-
-    return {
-        "avoided_segment": {
-            "from": "B",
-            "to": "D",
-            "reason": "flood_or_road_closure_demo",
-        },
-        "normal_route": {
-            "path": normal_route,
-            "route_edges": get_route_edges(normal_route),
-            "distance_meters": normal_distance,
-        },
-        "rerouted_route": {
-            "path": rerouted_path,
-            "route_edges": get_route_edges(rerouted_path),
-            "distance_meters": rerouted_distance,
-        },
-        "routing_algorithm": "Dijkstra",
-    }
-
-
-# ---------------------------------------------------------------------------
-# Traffic-aware Dijkstra endpoint
-# ---------------------------------------------------------------------------
-
-@app.get("/api/v1/routing/live")
-def get_live_route():
-    """
-    Gets live traffic near Koramangala using TomTom if a TOMTOM_API_KEY
-    is available in .env.
-
-    If no key is configured, it automatically uses demo traffic data,
-    so the endpoint continues to work for a presentation.
-    """
-    traffic_data = get_live_traffic(
-        latitude=12.9352,
-        longitude=77.6245,
-    )
-
-    if traffic_data is None:
-        traffic_data = get_demo_traffic()
-    else:
-        traffic_data["source"] = "tomtom_live"
-
-    traffic_by_edge = {
-        ("B", "D"): traffic_data,
-        ("D", "B"): traffic_data,
-    }
-
-    traffic_graph = apply_traffic_to_graph(
-        graph=SYNTHETIC_ROAD_GRAPH,
-        traffic_by_edge=traffic_by_edge,
-        default_speed_kmph=35,
-    )
-
-    route, travel_time_seconds = dijkstra(
-        graph=traffic_graph,
-        start="A",
-        goal="F",
-    )
-
-    if route is None:
-        raise HTTPException(
-            status_code=404,
-            detail="No traffic-aware route found.",
-        )
-
-    return {
-        "route_found": True,
-        "route": route,
-        "route_edges": get_route_edges(route),
-        "estimated_travel_time_seconds": round(
-            travel_time_seconds,
-            2,
-        ),
-        "estimated_travel_time_minutes": round(
-            travel_time_seconds / 60,
-            2,
-        ),
-        "traffic_data": traffic_data,
-        "routing_algorithm": (
-            "Custom Dijkstra with traffic-aware travel-time weights"
-        ),
-    }
+    result = routing.compute_route(graph, from_lng, from_lat, to_lng, to_lat)
+    return RouteResponse(**result)
