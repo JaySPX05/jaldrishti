@@ -1,0 +1,34 @@
+{
+  "$comment": "FROZEN CONTRACT — do not change shape without a message in the team channel and a version bump below. This is what unblocks Backend, Frontend, and ML from waiting on each other. If it needs to change mid-build, that's a 2-minute conversation, not a silent edit.",
+  "schema_version": "1.0.0",
+  "endpoint": "GET /api/v1/risk",
+  "query_params": {
+    "ward_id": "string, e.g. 'koramangala'",
+    "timestamp": "ISO8601 string, e.g. '2026-09-14T14:30:00+05:30' — one of the precomputed forecast steps"
+  },
+  "response_example": {
+    "ward_id": "koramangala",
+    "timestamp": "2026-09-14T14:30:00+05:30",
+    "forecast_window_minutes": 180,
+    "segments": [
+      {
+        "segment_id": "seg_0001",
+        "geometry": "LineString coordinates, [[lng, lat], [lng, lat], ...]",
+        "risk_score": 0.72,
+        "predicted_depth_cm": 18.4,
+        "confidence": 0.6
+      }
+    ]
+  },
+  "routing_endpoint": "GET /api/v1/route?from={lng,lat}&to={lng,lat}&ward_id=...",
+  "routing_response_example": {
+    "path": "LineString coordinates for the suggested route",
+    "avoided_segments": ["seg_0001"],
+    "risk_penalty_applied": true
+  },
+  "notes": [
+    "risk_score is 0-1, normalized, always present.",
+    "predicted_depth_cm and confidence are nice-to-have — Frontend should render gracefully if either is null.",
+    "Backend may serve this from a precomputed lookup table (see data-pipeline) instead of computing live — that's fine and expected for the 2-day build."
+  ]
+}

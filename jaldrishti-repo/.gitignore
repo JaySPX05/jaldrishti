@@ -1,0 +1,62 @@
+# --- Raw & processed data: NEVER commit these ---
+# GitHub hard-blocks files over 100MB, and DEM/shapefile data will blow past that fast.
+# Everyone re-downloads via data-pipeline/download_data.sh instead of committing binaries.
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+*.tif
+*.tiff
+*.shp
+*.shx
+*.dbf
+*.prj
+*.gdb
+*.geojson
+!contracts/**/*.geojson
+*.gpkg
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+*.ipynb_convert
+
+# --- Node / React ---
+node_modules/
+dist/
+build/
+.next/
+*.local
+
+# --- ML artifacts ---
+# Trained model weights are build outputs, not source — regenerate via the Colab
+# training notebook (see ml-nowcasting/README.md), don't commit large binaries.
+*.pkl
+*.joblib
+*.h5
+*.pt
+
+# --- SWMM outputs ---
+*.out
+*.rpt
+
+# --- Env / secrets ---
+.env
+.env.*
+*.key
+credentials.json
+
+# --- OS / editor cruft ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# --- Logs ---
+*.log
