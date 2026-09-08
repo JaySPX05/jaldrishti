@@ -1,15 +1,18 @@
 """
-FastAPI wrapper for JalDrishti flood-aware routing.
+JalDrishti flood-aware routing API.
 
-It:
-1. Loads real Koramangala roads from OpenStreetMap.
-2. Loads flood risk data from risk_lookup_koramangala.json.
-3. Assigns flood-risk scores to nearby road edges.
-4. Calls custom Dijkstra in routing.py.
-5. Returns GeoJSON for the Leaflet dashboard.
+This file:
+1. Loads real Koramangala road data from OpenStreetMap using OSMnx.
+2. Loads real predicted flood-risk data from risk_lookup_koramangala.json.
+3. Matches each risk segment to nearby OSM road edges.
+4. Uses custom Dijkstra from routing.py.
+5. Returns GeoJSON for the Leaflet frontend dashboard.
 
-Run:
+Run from backend-api folder:
     python -m uvicorn routing_api:app --reload
+
+Open:
+    http://127.0.0.1:8000/docs
 """
 
 import json
@@ -45,27 +48,40 @@ _state = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Real OSM road graph
+# ---------------------------------------------------------------------------
+
 def get_graph():
     """
-    Load the real OSM road graph once, then cache it in memory.
+    Loads the real Koramangala driving-road graph once.
+
+    The graph stays in memory while the server is running, so the map data
+    is not downloaded again on every dashboard request.
     """
     if _state["graph"] is None:
         print(
-            f"Loading real OSM roads for {PLACE_NAME}..."
+            f"Loading OpenStreetMap road graph for {PLACE_NAME}..."
         )
 
         _state["graph"] = load_osm_graph(
             PLACE_NAME
         )
 
+        print("Road graph loaded and cached.")
+
     return _state["graph"]
 
 
+# ---------------------------------------------------------------------------
+# Real flood-risk lookup data
+# ---------------------------------------------------------------------------
+
 def load_risk_data():
     """
-    Load the real risk lookup file.
+    Load the JSON output from Pair 1.
 
-    Expected data shape:
+    Required JSON format:
 
     {
       "ward_id": "koramangala",
@@ -75,7 +91,9 @@ def load_risk_data():
           {
             "segment_id": "seg_0001",
             "geometry": [[longitude, latitude], ...],
-            "risk_score": 0.39
+            "risk_score": 0.39,
+            "predicted_depth_cm": 11.7,
+            "confidence": 0.6
           }
         ]
       }
@@ -86,8 +104,8 @@ def load_risk_data():
 
     if not os.path.exists(RISK_LOOKUP_PATH):
         raise FileNotFoundError(
-            "Could not find risk_lookup_koramangala.json "
-            "in backend-api."
+            "risk_lookup_koramangala.json was not found "
+            "in the backend-api folder."
         )
 
     with open(
@@ -97,10 +115,16 @@ def load_risk_data():
     ) as file:
         _state["risk_data"] = json.load(file)
 
+    timestep_count = len(
+        _state["risk_data"].get(
+            "timesteps",
+            {},
+        )
+    )
+
     print(
-        "Loaded risk data with "
-        f"{len(_state['risk_data'].get('timesteps', {}))} "
-        "timesteps."
+        f"Loaded real flood-risk data with "
+        f"{timestep_count} timesteps."
     )
 
     return _state["risk_data"]
@@ -108,11 +132,17 @@ def load_risk_data():
 
 def segment_midpoint(geometry):
     """
-    Convert segment geometry from:
-    [[longitude, latitude], ...]
+    Convert risk-segment geometry into a midpoint.
 
-    into:
-    (latitude, longitude)
+    Input geometry:
+    [
+        [longitude, latitude],
+        [longitude, latitude],
+        ...
+    ]
+
+    Return:
+        (latitude, longitude)
     """
     longitudes = [
         point[0]
@@ -132,9 +162,12 @@ def segment_midpoint(geometry):
 
 def get_segments_for_timestep(timestep=None):
     """
-    Return risk segments and the timestamp that was actually used.
+    Return the flood-risk segments for a selected forecast timestamp.
 
-    If no valid timestamp is supplied, the first available time is used.
+    If timestep is missing or invalid, use the first timestamp available.
+
+    Return:
+        segments, timestamp_used
     """
     risk_data = load_risk_data()
 
@@ -146,8 +179,11 @@ def get_segments_for_timestep(timestep=None):
     if not timesteps:
         return [], None
 
-    if timestep in timesteps:
-        return timesteps[timestep], timestep
+    if timestep and timestep in timesteps:
+        return (
+            timesteps[timestep],
+            timestep,
+        )
 
     first_timestamp = next(iter(timesteps))
 
@@ -157,12 +193,20 @@ def get_segments_for_timestep(timestep=None):
     )
 
 
+# ---------------------------------------------------------------------------
+# Apply risk scores to real OSM road edges
+# ---------------------------------------------------------------------------
+
 def apply_risk_to_graph(graph, timestep=None):
     """
-    Set edge_data["risk_score"] for every OSM road edge.
+    Add flood-risk scores to real OSM road edges.
 
-    For this prototype, each road edge receives the risk score from the
-    geographically closest Pair 1 predicted segment.
+    Pair 1's risk JSON contains road geometry and segment IDs. OSM has its own
+    graph node/edge IDs. For the prototype, each OSM edge is assigned the
+    risk score from the geographically closest risk segment.
+
+    Return:
+        graph, timestep_used
     """
     segments, timestep_used = get_segments_for_timestep(
         timestep
@@ -234,12 +278,19 @@ def apply_risk_to_graph(graph, timestep=None):
     return graph, timestep_used
 
 
-def path_to_geojson_feature(
-    path,
-    properties=None,
-):
+# ---------------------------------------------------------------------------
+# GeoJSON conversion helpers
+# ---------------------------------------------------------------------------
+
+def path_to_geojson_feature(path, properties=None):
     """
-    Convert [[longitude, latitude], ...] to GeoJSON LineString.
+    Turn a path into a GeoJSON LineString Feature.
+
+    Path input:
+    [
+        [longitude, latitude],
+        ...
+    ]
     """
     if not path:
         return None
@@ -255,11 +306,12 @@ def path_to_geojson_feature(
 
 
 def get_severe_risk_segments(
-    timestep,
+    timestep=None,
     risk_threshold=0.55,
 ):
     """
-    Return Pair 1 segment IDs treated as unsafe for this route.
+    Return source segment IDs whose predicted risk is severe enough
+    to be treated as unsafe for the safe route.
     """
     segments, _ = get_segments_for_timestep(
         timestep
@@ -268,15 +320,20 @@ def get_severe_risk_segments(
     return [
         segment.get("segment_id", "unknown")
         for segment in segments
-        if float(segment.get("risk_score", 0.0))
-        >= risk_threshold
+        if float(
+            segment.get("risk_score", 0.0)
+        ) >= risk_threshold
     ]
 
+
+# ---------------------------------------------------------------------------
+# API endpoints
+# ---------------------------------------------------------------------------
 
 @app.get("/")
 def root():
     """
-    Health check plus routing-data status.
+    Shows API health and confirms whether real flood-risk data is loaded.
     """
     risk_data = load_risk_data()
 
@@ -290,7 +347,10 @@ def root():
             risk_data.get("timesteps")
         ),
         "available_timesteps": list(
-            risk_data.get("timesteps", {}).keys()
+            risk_data.get(
+                "timesteps",
+                {},
+            ).keys()
         ),
     }
 
@@ -304,11 +364,18 @@ def route(
     timestep: str = None,
 ):
     """
-    Return a GeoJSON FeatureCollection for Leaflet.
+    Return shortest and flood-safe routes for the Leaflet dashboard.
 
-    The response contains:
-    - shortest: route that ignores flood risk
-    - safe: route calculated with flood-risk penalties
+    The returned GeoJSON FeatureCollection contains:
+
+    - shortest:
+      Real OSM route based only on road distance.
+      Frontend should draw this as blue and dashed.
+
+    - safe:
+      Real OSM route calculated through custom Dijkstra.
+      Flood-risk edges are heavily penalized or blocked.
+      Frontend should draw this as green and solid.
     """
     graph = get_graph()
 
@@ -373,13 +440,22 @@ def route(
     if safe_feature:
         features.append(safe_feature)
 
+    risk_data = load_risk_data()
+
     return {
         "type": "FeatureCollection",
         "features": features,
         "meta": {
-            "ward_id": "koramangala",
+            "ward_id": risk_data.get(
+                "ward_id",
+                "koramangala",
+            ),
             "timestep_used": timestep_used,
+            "using_real_risk_data": bool(
+                risk_data.get("timesteps")
+            ),
             "risk_penalty_applied": True,
+            "risk_penalty_factor": 15.0,
             "risk_threshold": 0.55,
             "avoided_segments": get_severe_risk_segments(
                 timestep=timestep_used,
