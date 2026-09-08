@@ -2,26 +2,27 @@
 JalDrishti flood-aware routing API.
 
 This file:
-1. Loads real Koramangala road data from OpenStreetMap using OSMnx.
-2. Loads real predicted flood-risk data from risk_lookup_koramangala.json.
-3. Matches each risk segment to nearby OSM road edges.
-4. Uses custom Dijkstra from routing.py.
-5. Returns GeoJSON for the Leaflet frontend dashboard.
+1. Loads the real Koramangala road network from OpenStreetMap.
+2. Loads Pair 1's flood-risk dataset from ../data/risk_lookup_koramangala.json.
+3. Matches predicted risk segments to nearby OSM road edges.
+4. Calls the custom Dijkstra logic in routing.py.
+5. Returns GeoJSON for the Leaflet dashboard.
 
-Run from backend-api folder:
+Run from backend-api:
     python -m uvicorn routing_api:app --reload
 
-Open:
+Test:
     http://127.0.0.1:8000/docs
 """
 
 import json
-import os
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from routing import compute_route, load_osm_graph
+
 
 app = FastAPI(
     title="JalDrishti Routing API",
@@ -35,12 +36,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 PLACE_NAME = "Koramangala, Bengaluru, India"
 
-RISK_LOOKUP_PATH = os.path.join(
-    os.path.dirname(__file__),
-    "data",
-    "risk_lookup_koramangala.json",
+BASE_DIR = Path(__file__).resolve().parent
+
+RISK_LOOKUP_PATH = (
+    BASE_DIR.parent
+    / "data"
+    / "risk_lookup_koramangala.json"
 )
 
 _state = {
@@ -55,34 +59,34 @@ _state = {
 
 def get_graph():
     """
-    Loads the real Koramangala driving-road graph once.
+    Load the real Koramangala road graph once and keep it in memory.
 
-    The graph stays in memory while the server is running, so the map data
-    is not downloaded again on every dashboard request.
+    This avoids downloading OpenStreetMap data every time the frontend
+    requests a route.
     """
     if _state["graph"] is None:
         print(
-            f"Loading OpenStreetMap road graph for {PLACE_NAME}..."
+            f"Loading OSM road network for {PLACE_NAME}..."
         )
 
         _state["graph"] = load_osm_graph(
             PLACE_NAME
         )
 
-        print("Road graph loaded and cached.")
+        print("OSM road graph loaded.")
 
     return _state["graph"]
 
 
 # ---------------------------------------------------------------------------
-# Real flood-risk lookup data
+# Real flood-risk data
 # ---------------------------------------------------------------------------
 
 def load_risk_data():
     """
-    Load the JSON output from Pair 1.
+    Load Pair 1's real flood-risk lookup JSON.
 
-    Required JSON format:
+    Expected structure:
 
     {
       "ward_id": "koramangala",
@@ -103,14 +107,13 @@ def load_risk_data():
     if _state["risk_data"] is not None:
         return _state["risk_data"]
 
-    if not os.path.exists(RISK_LOOKUP_PATH):
+    if not RISK_LOOKUP_PATH.exists():
         raise FileNotFoundError(
-            "risk_lookup_koramangala.json was not found "
-            "in the backend-api folder."
+            "Could not find risk lookup data at: "
+            f"{RISK_LOOKUP_PATH}"
         )
 
-    with open(
-        RISK_LOOKUP_PATH,
+    with RISK_LOOKUP_PATH.open(
         "r",
         encoding="utf-8",
     ) as file:
@@ -124,7 +127,7 @@ def load_risk_data():
     )
 
     print(
-        f"Loaded real flood-risk data with "
+        f"Loaded flood-risk lookup data with "
         f"{timestep_count} timesteps."
     )
 
@@ -133,8 +136,6 @@ def load_risk_data():
 
 def segment_midpoint(geometry):
     """
-    Convert risk-segment geometry into a midpoint.
-
     Input geometry:
     [
         [longitude, latitude],
@@ -142,7 +143,7 @@ def segment_midpoint(geometry):
         ...
     ]
 
-    Return:
+    Output:
         (latitude, longitude)
     """
     longitudes = [
@@ -163,12 +164,13 @@ def segment_midpoint(geometry):
 
 def get_segments_for_timestep(timestep=None):
     """
-    Return the flood-risk segments for a selected forecast timestamp.
+    Get risk segments for the selected timestamp.
 
-    If timestep is missing or invalid, use the first timestamp available.
+    If the frontend does not send a timestamp, or sends an invalid timestamp,
+    use the first available forecast timestep.
 
-    Return:
-        segments, timestamp_used
+    Returns:
+        (segments, timestep_used)
     """
     risk_data = load_risk_data()
 
@@ -195,18 +197,18 @@ def get_segments_for_timestep(timestep=None):
 
 
 # ---------------------------------------------------------------------------
-# Apply risk scores to real OSM road edges
+# Risk-to-road matching
 # ---------------------------------------------------------------------------
 
 def apply_risk_to_graph(graph, timestep=None):
     """
-    Add flood-risk scores to real OSM road edges.
+    Assign every OSM edge a flood-risk score.
 
-    Pair 1's risk JSON contains road geometry and segment IDs. OSM has its own
-    graph node/edge IDs. For the prototype, each OSM edge is assigned the
-    risk score from the geographically closest risk segment.
+    Pair 1 gives us geometry for predicted flood segments.
+    OSM has separate road graph IDs. For this demo, assign each OSM edge
+    the risk score from its nearest predicted flood-risk segment.
 
-    Return:
+    Returns:
         graph, timestep_used
     """
     segments, timestep_used = get_segments_for_timestep(
@@ -280,18 +282,22 @@ def apply_risk_to_graph(graph, timestep=None):
 
 
 # ---------------------------------------------------------------------------
-# GeoJSON conversion helpers
+# GeoJSON helpers
 # ---------------------------------------------------------------------------
 
-def path_to_geojson_feature(path, properties=None):
+def path_to_geojson_feature(
+    path,
+    properties=None,
+):
     """
-    Turn a path into a GeoJSON LineString Feature.
+    Convert a path in this form:
 
-    Path input:
     [
         [longitude, latitude],
         ...
     ]
+
+    into a GeoJSON LineString Feature.
     """
     if not path:
         return None
@@ -307,12 +313,15 @@ def path_to_geojson_feature(path, properties=None):
 
 
 def get_severe_risk_segments(
-    timestep=None,
+    timestep,
     risk_threshold=0.55,
 ):
     """
-    Return source segment IDs whose predicted risk is severe enough
-    to be treated as unsafe for the safe route.
+    Return IDs of source forecast segments considered unsafe.
+
+    The current dataset peaks around 0.59, so 0.55 creates a visible
+    safe-route demonstration. Use 0.80 later if your model has higher
+    confidence/risk values and that is your team's agreed threshold.
     """
     segments, _ = get_segments_for_timestep(
         timestep
@@ -334,7 +343,7 @@ def get_severe_risk_segments(
 @app.get("/")
 def root():
     """
-    Shows API health and confirms whether real flood-risk data is loaded.
+    Health check plus real-data status.
     """
     risk_data = load_risk_data()
 
@@ -365,18 +374,14 @@ def route(
     timestep: str = None,
 ):
     """
-    Return shortest and flood-safe routes for the Leaflet dashboard.
+    Return two route options as GeoJSON for Leaflet:
 
-    The returned GeoJSON FeatureCollection contains:
+    - shortest: real-road route based only on road length
+    - safe: risk-aware custom Dijkstra route
 
-    - shortest:
-      Real OSM route based only on road distance.
-      Frontend should draw this as blue and dashed.
-
-    - safe:
-      Real OSM route calculated through custom Dijkstra.
-      Flood-risk edges are heavily penalized or blocked.
-      Frontend should draw this as green and solid.
+    Frontend styling:
+    - shortest -> blue, dashed
+    - safe -> green, solid
     """
     graph = get_graph()
 
@@ -408,7 +413,7 @@ def route(
     if not shortest_result["path"] and not safe_result["path"]:
         raise HTTPException(
             status_code=404,
-            detail="No route found between these points.",
+            detail="No route found between selected points.",
         )
 
     features = []
