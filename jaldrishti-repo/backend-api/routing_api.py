@@ -1,5 +1,6 @@
 import osmnx as ox
 import networkx as nx
+from routing import dijkstra
 
 # ---------- load the real road network ----------
 
