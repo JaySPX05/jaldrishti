@@ -1,138 +1,341 @@
 """
-Routing engine — owned by Pair 2's routing person.
+Flood-aware custom Dijkstra routing for JalDrishti.
 
-This file is deliberately separate from main.py and risk_data.py so you can
-work on it without touching the same file as your pair partner (who owns
-the risk API / data integration side). That keeps git merges clean.
+This file contains:
+- A real OSM road graph loader
+- Nearest road-node lookup
+- Custom Dijkstra routing
+- Flood-risk-weighted edge costs
 
-Day 1: build and test this against the synthetic risk data (see
-data_loader.py and data-pipeline/generate_synthetic_lookup.py) — you don't
-need real OSM data to start on the routing algorithm itself.
-
-Day 2, Hr 0-3: swap the synthetic road graph below for Pair 1's real OSM
-extract of the pilot ward. The algorithm and function signature shouldn't
-need to change — only where the graph comes from.
+routing_api.py loads the flood-risk JSON, maps its risk scores onto
+OSM road edges, then calls compute_route() from this file.
 """
 
-import math
-from typing import Optional
+import heapq
 
-import networkx as nx
+import osmnx as ox
 
 
-def build_synthetic_graph(center_lng: float, center_lat: float) -> nx.Graph:
+def load_osm_graph(
+    place_name="Koramangala, Bengaluru, India",
+):
     """
-    A small fake road grid so you can build and test Dijkstra TODAY, without
-    waiting on Pair 1's real OSM extract. 5x5 grid of nodes, connected to
-    their neighbors — enough to prove the algorithm works end-to-end.
+    Download the actual driving-road graph from OpenStreetMap.
 
-    Day 2: replace this with something like:
-        import osmnx as ox
-        graph = ox.graph_from_place("Koramangala, Bengaluru, India", network_type="drive")
+    OSMnx node coordinate keys:
+    - node["x"] = longitude
+    - node["y"] = latitude
+
+    OSMnx edge key:
+    - edge["length"] = road length in metres
     """
-    G = nx.Graph()
-    step = 0.003
-    size = 5
+    graph = ox.graph_from_place(
+        place_name,
+        network_type="drive",
+    )
 
-    for i in range(size):
-        for j in range(size):
-            node_id = f"n_{i}_{j}"
-            lng = center_lng + i * step
-            lat = center_lat + j * step
-            G.add_node(node_id, lng=lng, lat=lat)
+    for _, _, _, edge_data in graph.edges(
+        keys=True,
+        data=True,
+    ):
+        edge_data["risk_score"] = 0.0
 
-    for i in range(size):
-        for j in range(size):
-            here = f"n_{i}_{j}"
-            if i + 1 < size:
-                _add_edge(G, here, f"n_{i+1}_{j}")
-            if j + 1 < size:
-                _add_edge(G, here, f"n_{i}_{j+1}")
-
-    return G
+    return graph
 
 
-def _add_edge(G: nx.Graph, a: str, b: str):
-    la = G.nodes[a]
-    lb = G.nodes[b]
-    dist_m = _haversine_m(la["lng"], la["lat"], lb["lng"], lb["lat"])
-    G.add_edge(a, b, base_distance_m=dist_m, risk_score=0.0)
-
-
-def _haversine_m(lng1, lat1, lng2, lat2) -> float:
-    """Straight-line distance in metres between two lng/lat points."""
-    R = 6371000
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lng2 - lng1)
-    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
-    return 2 * R * math.asin(math.sqrt(a))
-
-
-def _nearest_node(G: nx.Graph, lng: float, lat: float) -> str:
-    """Snap an arbitrary lng/lat to the closest graph node."""
-    best_node, best_dist = None, float("inf")
-    for node, data in G.nodes(data=True):
-        d = _haversine_m(lng, lat, data["lng"], data["lat"])
-        if d < best_dist:
-            best_node, best_dist = node, d
-    return best_node
-
-
-def apply_risk_scores(G: nx.Graph, risk_lookup: dict[str, float]):
+def _nearest_node(graph, longitude, latitude):
     """
-    Stamp risk scores onto graph edges before routing.
+    Snap coordinates to the closest real road-network node.
 
-    risk_lookup maps some identifier -> risk_score (0-1). Exactly how you key
-    this depends on how Pair 1's real data lines up edges to segment_ids —
-    for the mock/synthetic graph, this just assigns a score by edge index so
-    you can prove the weighting logic works before real data exists.
+    OSMnx:
+    X = longitude
+    Y = latitude
     """
-    for i, (u, v) in enumerate(G.edges()):
-        key = f"edge_{i}"
-        G[u][v]["risk_score"] = risk_lookup.get(key, 0.0)
+    return ox.distance.nearest_nodes(
+        graph,
+        X=longitude,
+        Y=latitude,
+    )
+
+
+def _edge_cost(
+    edge_data,
+    risk_penalty_factor,
+    risk_threshold,
+):
+    """
+    Calculate the flood-aware Dijkstra cost for one OSM edge.
+
+    Roads whose flood risk reaches the threshold are treated as unsafe,
+    so None is returned and the edge will be excluded.
+
+    For usable roads:
+    cost = length_in_metres * (1 + risk_penalty_factor * risk_score)
+    """
+    road_length = float(
+        edge_data.get("length", 1.0)
+    )
+
+    risk_score = float(
+        edge_data.get("risk_score", 0.0)
+    )
+
+    if risk_score >= risk_threshold:
+        return None
+
+    return road_length * (
+        1 + risk_penalty_factor * risk_score
+    )
+
+
+def _make_adjacency_graph(
+    osm_graph,
+    risk_penalty_factor,
+    risk_threshold,
+):
+    """
+    Convert OSMnx MultiDiGraph into a normal adjacency-list graph.
+
+    The custom Dijkstra function below expects:
+
+    {
+        node_id: [
+            (neighbour_node_id, weight),
+            ...
+        ]
+    }
+
+    OSM may have several parallel edges from A to B. Keep only the
+    lowest-cost one for each (source, destination) pair.
+    """
+    adjacency_graph = {
+        node: []
+        for node in osm_graph.nodes
+    }
+
+    best_costs = {}
+
+    for source, destination, _, edge_data in osm_graph.edges(
+        keys=True,
+        data=True,
+    ):
+        edge_cost = _edge_cost(
+            edge_data=edge_data,
+            risk_penalty_factor=risk_penalty_factor,
+            risk_threshold=risk_threshold,
+        )
+
+        if edge_cost is None:
+            continue
+
+        edge_pair = (
+            source,
+            destination,
+        )
+
+        old_cost = best_costs.get(edge_pair)
+
+        if old_cost is None or edge_cost < old_cost:
+            best_costs[edge_pair] = edge_cost
+
+    for (source, destination), edge_cost in best_costs.items():
+        adjacency_graph[source].append(
+            (destination, edge_cost)
+        )
+
+    return adjacency_graph
+
+
+def dijkstra(graph, start, goal):
+    """
+    Custom Dijkstra implementation.
+
+    Returns:
+        (node_path, total_cost)
+
+    If there is no route:
+        (None, infinity)
+    """
+    if start not in graph or goal not in graph:
+        return None, float("inf")
+
+    distances = {
+        node: float("inf")
+        for node in graph
+    }
+
+    previous = {
+        node: None
+        for node in graph
+    }
+
+    distances[start] = 0.0
+
+    priority_queue = [
+        (0.0, start)
+    ]
+
+    while priority_queue:
+        current_cost, current_node = heapq.heappop(
+            priority_queue
+        )
+
+        if current_cost > distances[current_node]:
+            continue
+
+        if current_node == goal:
+            break
+
+        for neighbour, edge_cost in graph[current_node]:
+            new_cost = current_cost + edge_cost
+
+            if new_cost < distances[neighbour]:
+                distances[neighbour] = new_cost
+                previous[neighbour] = current_node
+
+                heapq.heappush(
+                    priority_queue,
+                    (new_cost, neighbour),
+                )
+
+    if distances[goal] == float("inf"):
+        return None, float("inf")
+
+    path = []
+    current_node = goal
+
+    while current_node is not None:
+        path.append(current_node)
+        current_node = previous[current_node]
+
+    path.reverse()
+
+    return path, distances[goal]
+
+
+def _route_nodes_to_coordinates(
+    osm_graph,
+    route_nodes,
+):
+    """
+    Convert OSM node IDs to the frontend coordinate format:
+
+    [[longitude, latitude], ...]
+    """
+    if route_nodes is None:
+        return []
+
+    return [
+        [
+            float(osm_graph.nodes[node]["x"]),
+            float(osm_graph.nodes[node]["y"]),
+        ]
+        for node in route_nodes
+    ]
+
+
+def _get_avoided_segments(
+    osm_graph,
+    route_nodes,
+    risk_threshold,
+):
+    """
+    Create a list of OSM edges with severe flood risk that were not used.
+
+    This is for displaying the avoided-road information in the dashboard.
+    """
+    if route_nodes is None:
+        return []
+
+    route_edges = set(
+        zip(route_nodes, route_nodes[1:])
+    )
+
+    avoided_segments = []
+
+    for source, destination, key, edge_data in osm_graph.edges(
+        keys=True,
+        data=True,
+    ):
+        risk_score = float(
+            edge_data.get("risk_score", 0.0)
+        )
+
+        if (
+            risk_score >= risk_threshold
+            and (source, destination) not in route_edges
+        ):
+            avoided_segments.append(
+                f"{source}-{destination}-{key}"
+            )
+
+    return avoided_segments
 
 
 def compute_route(
-    G: nx.Graph,
-    from_lng: float,
-    from_lat: float,
-    to_lng: float,
-    to_lat: float,
-    risk_penalty_factor: float = 5.0,
-    risk_threshold: float = 0.7,
-) -> dict:
+    G,
+    from_lng,
+    from_lat,
+    to_lng,
+    to_lat,
+    risk_penalty_factor=15.0,
+    risk_threshold=0.55,
+):
     """
-    Risk-weighted Dijkstra. Higher risk_score on an edge makes it more
-    "expensive" to traverse, so the shortest-weighted-path naturally
-    avoids high-risk segments without hard-blocking them.
+    Build and calculate a flood-aware route over the real OSM road graph.
 
-    risk_penalty_factor: how strongly risk affects the route. 0 = ignore
-    risk entirely (pure shortest path). Higher = more willing to take a
-    longer physical route to avoid risk.
+    Important:
+    - `G` must already have edge_data["risk_score"] values set by
+      routing_api.py.
+    - The default threshold is 0.55 because your supplied lookup data
+      peaks at approximately 0.59. A threshold of 0.8 would block nothing.
+
+    Returns:
+    {
+        "path": [[longitude, latitude], ...],
+        "avoided_segments": [...],
+        "risk_penalty_applied": true,
+        "route_cost": number
+    }
     """
-    source = _nearest_node(G, from_lng, from_lat)
-    target = _nearest_node(G, to_lng, to_lat)
+    source = _nearest_node(
+        G,
+        longitude=from_lng,
+        latitude=from_lat,
+    )
 
-    for u, v, data in G.edges(data=True):
-        data["weight"] = data["base_distance_m"] * (1 + risk_penalty_factor * data["risk_score"])
+    target = _nearest_node(
+        G,
+        longitude=to_lng,
+        latitude=to_lat,
+    )
 
-    try:
-        node_path = nx.shortest_path(G, source, target, weight="weight")
-    except nx.NetworkXNoPath:
-        return {"path": [], "avoided_segments": [], "risk_penalty_applied": False}
+    adjacency_graph = _make_adjacency_graph(
+        osm_graph=G,
+        risk_penalty_factor=risk_penalty_factor,
+        risk_threshold=risk_threshold,
+    )
 
-    coords = [[G.nodes[n]["lng"], G.nodes[n]["lat"]] for n in node_path]
-
-    avoided = []
-    for u, v, data in G.edges(data=True):
-        if data["risk_score"] >= risk_threshold:
-            if not (u in node_path and v in node_path and
-                     abs(node_path.index(u) - node_path.index(v)) == 1):
-                avoided.append(f"{u}-{v}")
+    route_nodes, route_cost = dijkstra(
+        graph=adjacency_graph,
+        start=source,
+        goal=target,
+    )
 
     return {
-        "path": coords,
-        "avoided_segments": avoided,
-        "risk_penalty_applied": risk_penalty_factor > 0,
+        "path": _route_nodes_to_coordinates(
+            G,
+            route_nodes,
+        ),
+        "avoided_segments": _get_avoided_segments(
+            osm_graph=G,
+            route_nodes=route_nodes,
+            risk_threshold=risk_threshold,
+        ),
+        "risk_penalty_applied": (
+            risk_penalty_factor > 0
+        ),
+        "route_cost": route_cost
+        if route_nodes is not None
+        else None,
     }
