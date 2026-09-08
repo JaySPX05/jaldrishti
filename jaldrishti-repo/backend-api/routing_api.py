@@ -39,6 +39,7 @@ PLACE_NAME = "Koramangala, Bengaluru, India"
 
 RISK_LOOKUP_PATH = os.path.join(
     os.path.dirname(__file__),
+    "data",
     "risk_lookup_koramangala.json",
 )
 
