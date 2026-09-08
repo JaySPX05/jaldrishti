@@ -71,7 +71,7 @@ def build_nowcast(rainfall_stack, n_leadtimes=18):
     extrapolate = nowcasts.get_method("extrapolation")
     forecast_db = extrapolate(rainfall_db[-1], motion_field, n_leadtimes)
 
-    forecast_mm = transformation.dB_transform(forecast_db, inverse=True, threshold=-10.0, zerovalue=-15.0)[0]
+    forecast_mm = transformation.dB_transform(forecast_db, inverse=True, threshold=-10.0, zerovalue=0.0)[0]
     return forecast_mm
 
 
@@ -115,8 +115,8 @@ def nowcast_summary(n_leadtimes: int = 18):
         summary.append({
             "leadtime_step": i,
             "minutes_ahead": (i + 1) * _cache["timestep_minutes"],
-            "mean_rainfall_mm": float(np.mean(grid)),
-            "max_rainfall_mm": float(np.max(grid)),
+            "mean_rainfall_mm": float(np.nanmean(grid)),
+            "max_rainfall_mm": float(np.nanmax(grid)),
         })
     return {"leadtimes": summary}
 
