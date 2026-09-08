@@ -1,0 +1,215 @@
+import os
+import numpy as np
+import geopandas as gpd
+import rasterio
+from rasterio.features import rasterize
+from scipy.ndimage import distance_transform_edt
+
+
+# ============================================================
+# PATHS
+# ============================================================
+
+WARD = "data/processed/ward.gpkg"
+DRAINS = "data/processed/drains_ward.gpkg"
+BUILDINGS = "data/processed/buildings.gpkg"
+DEM = "data/processed/dem_utm.tif"
+
+OUTPUT_DIR = "data/processed"
+
+SLOPE_OUT = os.path.join(OUTPUT_DIR, "slope.tif")
+DISTANCE_OUT = os.path.join(OUTPUT_DIR, "distance_to_drain.tif")
+IMPERVIOUS_OUT = os.path.join(OUTPUT_DIR, "imperviousness.tif")
+
+
+# ============================================================
+# 1. READ DEM
+# ============================================================
+
+print("=" * 50)
+print("CREATING RASTER LAYERS")
+print("=" * 50)
+
+print("\nReading DEM...")
+
+with rasterio.open(DEM) as src:
+    dem = src.read(1).astype("float32")
+    profile = src.profile.copy()
+    transform = src.transform
+    crs = src.crs
+    width = src.width
+    height = src.height
+    pixel_x = abs(transform.a)
+    pixel_y = abs(transform.e)
+    nodata = src.nodata
+
+print("DEM CRS:", crs)
+print("DEM size:", width, height)
+print("Pixel size:", pixel_x, pixel_y)
+
+
+# ============================================================
+# 2. CREATE SLOPE
+# ============================================================
+
+print("\nCreating slope...")
+
+# Replace nodata with NaN temporarily
+if nodata is not None:
+    dem[dem == nodata] = np.nan
+
+# Calculate elevation gradients
+dy, dx = np.gradient(dem, pixel_y, pixel_x)
+
+# Slope in degrees
+slope = np.degrees(np.arctan(np.sqrt(dx ** 2 + dy ** 2)))
+
+# Restore nodata
+if nodata is not None:
+    slope[np.isnan(slope)] = nodata
+
+slope_profile = profile.copy()
+slope_profile.update(
+    dtype="float32",
+    count=1,
+    compress="deflate",
+    nodata=nodata
+)
+
+with rasterio.open(SLOPE_OUT, "w", **slope_profile) as dst:
+    dst.write(slope.astype("float32"), 1)
+
+print("Saved:", SLOPE_OUT)
+
+
+# ============================================================
+# 3. READ DRAINS
+# ============================================================
+
+print("\nReading drains...")
+
+drains = gpd.read_file(DRAINS)
+
+print("Drains:", len(drains))
+print("Drains CRS:", drains.crs)
+
+# Reproject to DEM CRS
+if drains.crs != crs:
+    drains = drains.to_crs(crs)
+
+print("Drains reprojected to:", drains.crs)
+
+
+# ============================================================
+# 4. CREATE DRAIN RASTER
+# ============================================================
+
+print("\nRasterizing drains...")
+
+drain_shapes = [
+    (geom, 1)
+    for geom in drains.geometry
+    if geom is not None and not geom.is_empty
+]
+
+drain_raster = rasterize(
+    drain_shapes,
+    out_shape=(height, width),
+    transform=transform,
+    fill=0,
+    dtype="uint8"
+)
+
+# ============================================================
+# 5. DISTANCE TO DRAIN
+# ============================================================
+
+print("\nCalculating distance to drains...")
+
+# Distance transform calculates distance from every 0 pixel
+# to the nearest 1 pixel.
+distance_pixels = distance_transform_edt(
+    drain_raster == 0,
+    sampling=(pixel_y, pixel_x)
+)
+
+distance_meters = distance_pixels.astype("float32")
+
+distance_profile = profile.copy()
+distance_profile.update(
+    dtype="float32",
+    count=1,
+    compress="deflate",
+    nodata=-9999
+)
+
+with rasterio.open(DISTANCE_OUT, "w", **distance_profile) as dst:
+    dst.write(distance_meters, 1)
+
+print("Saved:", DISTANCE_OUT)
+
+
+# ============================================================
+# 6. READ BUILDINGS
+# ============================================================
+
+print("\nReading buildings...")
+
+buildings = gpd.read_file(BUILDINGS)
+
+print("Buildings:", len(buildings))
+print("Buildings CRS:", buildings.crs)
+
+# Reproject buildings to DEM CRS
+if buildings.crs != crs:
+    buildings = buildings.to_crs(crs)
+
+print("Buildings reprojected to:", buildings.crs)
+
+
+# ============================================================
+# 7. CREATE IMPERVIOUSNESS RASTER
+# ============================================================
+
+print("\nCreating imperviousness raster...")
+
+building_shapes = [
+    (geom, 1)
+    for geom in buildings.geometry
+    if geom is not None and not geom.is_empty
+]
+
+impervious = rasterize(
+    building_shapes,
+    out_shape=(height, width),
+    transform=transform,
+    fill=0,
+    dtype="float32"
+)
+
+impervious_profile = profile.copy()
+impervious_profile.update(
+    dtype="float32",
+    count=1,
+    compress="deflate",
+    nodata=0
+)
+
+with rasterio.open(IMPERVIOUS_OUT, "w", **impervious_profile) as dst:
+    dst.write(impervious, 1)
+
+print("Saved:", IMPERVIOUS_OUT)
+
+
+# ============================================================
+# 8. FINISHED
+# ============================================================
+
+print("\n" + "=" * 50)
+print("RASTER CREATION COMPLETE")
+print("=" * 50)
+
+print("\nCreated:")
+print("1.", SLOPE_OUT)
+print("2.", DISTANCE_OUT)
+print("3.", IMPERVIOUS_OUT)
