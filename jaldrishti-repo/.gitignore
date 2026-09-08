@@ -16,6 +16,7 @@ data/processed/*
 *.geojson
 !contracts/**/*.geojson
 *.gpkg
+!data/processed/flood_points_final_clean.gpkg
 
 # --- Python ---
 __pycache__/
