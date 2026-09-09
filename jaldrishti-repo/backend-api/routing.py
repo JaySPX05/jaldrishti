@@ -15,7 +15,6 @@ import heapq
 
 import osmnx as ox
 
-from routing import compute_route, load_osm_graph
 def load_osm_graph(
     place_name="Koramangala, Bengaluru, India",
 ):
