@@ -56,14 +56,21 @@ def _nearest_timestep(available: list[str], requested: str) -> str:
     The frontend may ask for a timestamp that doesn't exactly match one of
     the precomputed steps. Snap to the closest available one rather than
     returning nothing.
+
+    Real pipeline output (05_build_lookup.py) writes NAIVE timestamps (no
+    timezone), while this codebase generates timezone-AWARE ones by default
+    (datetime.now(timezone.utc)). Comparing the two directly raises
+    TypeError - confirmed by running this against the actual real
+    risk_lookup_koramangala.json. Strip timezone info from both sides
+    before comparing so either format works.
     """
     from datetime import datetime
 
-    def parse(ts):
-        return datetime.fromisoformat(ts)
+    def parse_naive(ts):
+        return datetime.fromisoformat(ts).replace(tzinfo=None)
 
-    target = parse(requested)
-    return min(available, key=lambda ts: abs((parse(ts) - target).total_seconds()))
+    target = parse_naive(requested)
+    return min(available, key=lambda ts: abs((parse_naive(ts) - target).total_seconds()))
 
 
 def get_risk_segments(ward_id: str, timestamp: str):
@@ -85,6 +92,21 @@ def get_risk_segments(ward_id: str, timestamp: str):
 
     nearest = _nearest_timestep(available_timestamps, timestamp)
     return file_data["timesteps"][nearest]
+
+
+def get_flood_points(ward_id: str):
+    """
+    Real, known flood-prone locations (not synthetic) - static list, no
+    timesteps. Complementary to get_risk_segments(), not a replacement:
+    this answers "where has flooding actually happened historically,"
+    the risk lookup answers "how flooded will this street be right now."
+    """
+    path = _LOOKUP_DIR / f"flood_points_{ward_id.lower()}.geojson"
+    if not path.exists():
+        return None
+
+    data = json.loads(path.read_text())
+    return data.get("features", [])
 
 
 def known_wards() -> list[str]:
