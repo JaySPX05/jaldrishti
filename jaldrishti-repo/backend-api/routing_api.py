@@ -70,9 +70,7 @@ def get_graph():
             f"Loading OSM road network for {PLACE_NAME}..."
         )
 
-        _state["graph"] = load_osm_graph(
-            PLACE_NAME
-        )
+        _state["graph"] = load_osm_graph()
 
         print("OSM road graph loaded.")
 
@@ -202,16 +200,7 @@ def get_segments_for_timestep(timestep=None):
 # ---------------------------------------------------------------------------
 
 def apply_risk_to_graph(graph, timestep=None):
-    """
-    Assign every OSM edge a flood-risk score.
 
-    Pair 1 gives us geometry for predicted flood segments.
-    OSM has separate road graph IDs. For this demo, assign each OSM edge
-    the risk score from its nearest predicted flood-risk segment.
-
-    Returns:
-        graph, timestep_used
-    """
     segments, timestep_used = get_segments_for_timestep(
         timestep
     )
@@ -243,6 +232,8 @@ def apply_risk_to_graph(graph, timestep=None):
         float(segment.get("risk_score", 0.0))
         for segment in usable_segments
     ]
+
+    MAX_MATCH_DISTANCE_SQUARED = 0.000003228  # ~200m at this latitude
 
     for source, destination, _, edge_data in graph.edges(
         keys=True,
@@ -277,7 +268,8 @@ def apply_risk_to_graph(graph, timestep=None):
                 nearest_distance = distance
                 nearest_risk = risk_score
 
-        edge_data["risk_score"] = nearest_risk
+        if nearest_distance <= MAX_MATCH_DISTANCE_SQUARED:
+            edge_data["risk_score"] = nearest_risk
 
     return graph, timestep_used
 
@@ -467,6 +459,9 @@ def route(
             "avoided_segments": get_severe_risk_segments(
                 timestep=timestep_used,
                 risk_threshold=0.55,
+            ),
+            "safe_route_available": bool(
+                safe_result["path"]
             ),
             "algorithm": "Custom Dijkstra",
         },
