@@ -44,6 +44,7 @@ BASE_DIR = Path(__file__).resolve().parent
 RISK_LOOKUP_PATH = (
     BASE_DIR.parent
     / "data"
+    / "processed"
     / "risk_lookup_koramangala.json"
 )
 
