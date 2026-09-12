@@ -59,7 +59,8 @@ class RiskSegment(BaseModel):
     predicted_depth_cm: Optional[float] = None
     confidence: Optional[float] = None
 
-
+from routing import compute_route
+from routing_api import apply_risk_to_graph, get_graph
 class RiskResponse(BaseModel):
     ward_id: str
     timestamp: str
@@ -80,7 +81,8 @@ def health_check():
 @app.get("/api/v1/risk", response_model=RiskResponse)
 def get_risk(
     ward_id: str = Query(..., description="e.g. 'koramangala'"),
-    timestamp: Optional[str] = Query(
+from routing import compute_route
+from routing_api import apply_risk_to_graph, get_graph
         None, description="ISO8601. Defaults to now if omitted."
     ),
 ):
@@ -105,7 +107,7 @@ def get_risk(
         timestamp=ts,
         forecast_window_minutes=180,
         segments=segments,
-    )
+    timestamp: Optional[str] = Query(None, description="ISO8601. Defaults to now if omitted.")
 
 
 @app.get("/api/v1/flood-points", response_model=FloodPointsResponse)

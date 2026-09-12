@@ -2,6 +2,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import rasterio
+from shapely.geometry import box
 from rasterio.mask import mask
 from rasterio.warp import calculate_default_transform, reproject
 from rasterio.enums import Resampling
@@ -18,6 +19,10 @@ PROCESSED.mkdir(parents=True, exist_ok=True)
 
 # Target projected CRS: UTM Zone 43N
 TARGET_CRS = "EPSG:32643"
+
+# The source ward polygon does not overlap the supplied OSM/drain layers
+# consistently. Keep one reproducible pilot-study extent for those layers.
+STUDY_BBOX_WGS84 = (77.618, 12.918, 77.650, 12.953)
 
 
 # --------------------------------------------------
@@ -69,6 +74,11 @@ print("  CRS:", ward.crs)
 
 ward = ward.to_crs(TARGET_CRS)
 
+study_area = gpd.GeoDataFrame(
+    geometry=[box(*STUDY_BBOX_WGS84)],
+    crs="EPSG:4326",
+).to_crs(TARGET_CRS)
+
 # Save processed ward
 ward.to_file(
     PROCESSED / "ward.gpkg",
@@ -87,7 +97,7 @@ prepare_vector(
     PROCESSED / "drains.gpkg",
     PROCESSED / "drains_ward.gpkg",
     "drains",
-    ward
+    study_area
 )
 
 
@@ -99,7 +109,7 @@ prepare_vector(
     PROCESSED / "roads.gpkg",
     PROCESSED / "roads_ward.gpkg",
     "roads",
-    ward
+    study_area
 )
 
 
