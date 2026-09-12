@@ -3,7 +3,7 @@ JalDrishti flood-aware routing API.
 
 This file:
 1. Loads the real Koramangala road network from OpenStreetMap.
-2. Loads Pair 1's flood-risk dataset from ../data/risk_lookup_koramangala.json.
+2. Loads the processed Koramangala flood-risk lookup JSON.
 3. Matches predicted risk segments to nearby OSM road edges.
 4. Calls the custom Dijkstra logic in routing.py.
 5. Returns GeoJSON for the Leaflet dashboard.
@@ -78,7 +78,8 @@ def get_graph():
 
     return _state["graph"]
 
-
+    / "processed"
+    / "risk_lookup_koramangala.json"
 # ---------------------------------------------------------------------------
 # Real flood-risk data
 # ---------------------------------------------------------------------------
