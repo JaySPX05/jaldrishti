@@ -1,21 +1,13 @@
 """
 JalDrishti Backend — Risk API
 
-DECISION (this build): real data from Pair 1 will not arrive in time.
-Shipping on synthetic data from data-pipeline/generate_synthetic_lookup.py,
-served via data_loader.py. This is the actual dataset for the demo, not a
-placeholder — treat it accordingly.
+Real GIS pipeline data from Pair 1 is now live: data/processed/risk_lookup_<ward_id>.json,
+served via data_loader.py, matching contracts/risk-lookup-table-format.md.
 
-If real data arrives later: drop the real file at
-data/processed/risk_lookup_<ward_id>.json, matching
-contracts/risk-lookup-table-format.md. Nothing in this file changes.
-
-ARCHITECTURE NOTE: routing now lives in its own standalone service,
+ARCHITECTURE NOTE: routing lives in its own standalone service,
 routing_api.py (run separately: uvicorn routing_api:app --port 8001),
 which does real OSM-based routing against the real risk data. This
-file no longer serves /api/v1/route - it used to call a synthetic-grid
-routing.py interface that no longer exists now that routing.py has
-been replaced with real OSM logic. Run both services side by side; the
+file does not serve /api/v1/route. Run both services side by side; the
 dashboard should call this one for risk/flood-point data and
 routing_api.py (on its own port) for routes.
 
@@ -58,9 +50,10 @@ class RiskSegment(BaseModel):
     risk_score: float
     predicted_depth_cm: Optional[float] = None
     confidence: Optional[float] = None
+    drain_proximity_m: Optional[float] = None
+    mean_rainfall_mm: Optional[float] = None
 
-from routing import compute_route
-from routing_api import apply_risk_to_graph, get_graph
+
 class RiskResponse(BaseModel):
     ward_id: str
     timestamp: str
@@ -81,15 +74,13 @@ def health_check():
 @app.get("/api/v1/risk", response_model=RiskResponse)
 def get_risk(
     ward_id: str = Query(..., description="e.g. 'koramangala'"),
-from routing import compute_route
-from routing_api import apply_risk_to_graph, get_graph
+    timestamp: Optional[str] = Query(
         None, description="ISO8601. Defaults to now if omitted."
     ),
 ):
     """
     Returns risk scores for every street segment in a ward at a given timestep,
-    read from the synthetic dataset via data_loader.py. If real data lands
-    later, it's served from the exact same path with no code change here.
+    read from the real lookup table via data_loader.py.
     """
     ts = timestamp or datetime.now(timezone.utc).isoformat()
 
@@ -98,8 +89,7 @@ from routing_api import apply_risk_to_graph, get_graph
         raise HTTPException(
             status_code=404,
             detail=f"No data for ward_id='{ward_id}'. "
-                   f"Known wards: {data_loader.known_wards()}. "
-                   f"Generate one: python data-pipeline/generate_synthetic_lookup.py {ward_id}",
+                   f"Known wards: {data_loader.known_wards()}. ",
         )
 
     return RiskResponse(
@@ -107,7 +97,7 @@ from routing_api import apply_risk_to_graph, get_graph
         timestamp=ts,
         forecast_window_minutes=180,
         segments=segments,
-    timestamp: Optional[str] = Query(None, description="ISO8601. Defaults to now if omitted.")
+    )
 
 
 @app.get("/api/v1/flood-points", response_model=FloodPointsResponse)
