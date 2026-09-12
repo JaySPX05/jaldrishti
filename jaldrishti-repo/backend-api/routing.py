@@ -16,6 +16,7 @@ import heapq
 import osmnx as ox
 
 from routing import compute_route, load_osm_graph
+
 def load_osm_graph(
     place_name="Koramangala, Bengaluru, India",
 ):
@@ -43,7 +44,7 @@ def load_osm_graph(
     return graph
 
 
-def _nearest_node(graph, longitude, latitude):
+
     """
     Snap coordinates to the closest real road-network node.
 
