@@ -32,15 +32,12 @@
 	        user-select: none;
 	  -webkit-user-drag: none;
 	}
-/* Prevents IE11 from highlighting tiles in blue */
 .leaflet-tile::selection {
 	background: transparent;
 }
-/* Safari renders non-retina tile on retina better with this, but Chrome is worse */
 .leaflet-safari .leaflet-tile {
 	image-rendering: -webkit-optimize-contrast;
 	}
-/* hack that prevents hw layers "stretching" when loading new tiles */
 .leaflet-safari .leaflet-tile-container {
 	width: 1600px;
 	height: 1600px;
@@ -50,8 +47,6 @@
 .leaflet-marker-shadow {
 	display: block;
 	}
-/* .leaflet-container svg: reset svg max-width decleration shipped in Joomla! (joomla.org) 3.x */
-/* .leaflet-container img: map is broken in FF if you have max-width: 100% on tiles */
 .leaflet-container .leaflet-overlay-pane svg {
 	max-width: none !important;
 	max-height: none !important;
@@ -66,19 +61,15 @@
 	width: auto;
 	padding: 0;
 	}
-
 .leaflet-container img.leaflet-tile {
-	/* See: https://bugs.chromium.org/p/chromium/issues/detail?id=600120 */
 	mix-blend-mode: plus-lighter;
 }
-
 .leaflet-container.leaflet-touch-zoom {
 	-ms-touch-action: pan-x pan-y;
 	touch-action: pan-x pan-y;
 	}
 .leaflet-container.leaflet-touch-drag {
 	-ms-touch-action: pinch-zoom;
-	/* Fallback for FF which doesn't support pinch-zoom */
 	touch-action: none;
 	touch-action: pinch-zoom;
 }
@@ -106,23 +97,18 @@
 	     box-sizing: border-box;
 	z-index: 800;
 	}
-/* workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=888319 */
 .leaflet-overlay-pane svg {
 	-moz-user-select: none;
 	}
-
 .leaflet-pane         { z-index: 400; }
-
 .leaflet-tile-pane    { z-index: 200; }
 .leaflet-overlay-pane { z-index: 400; }
 .leaflet-shadow-pane  { z-index: 500; }
 .leaflet-marker-pane  { z-index: 600; }
 .leaflet-tooltip-pane   { z-index: 650; }
 .leaflet-popup-pane   { z-index: 700; }
-
 .leaflet-map-pane canvas { z-index: 100; }
 .leaflet-map-pane svg    { z-index: 200; }
-
 .leaflet-vml-shape {
 	width: 1px;
 	height: 1px;
@@ -132,14 +118,10 @@
 	display: inline-block;
 	position: absolute;
 	}
-
-
-/* control positioning */
-
 .leaflet-control {
 	position: relative;
 	z-index: 800;
-	pointer-events: visiblePainted; /* IE 9-10 doesn't have auto */
+	pointer-events: visiblePainted;
 	pointer-events: auto;
 	}
 .leaflet-top,
@@ -179,10 +161,6 @@
 .leaflet-right .leaflet-control {
 	margin-right: 10px;
 	}
-
-
-/* zoom and fade animations */
-
 .leaflet-fade-anim .leaflet-popup {
 	opacity: 0;
 	-webkit-transition: opacity 0.2s linear;
@@ -200,7 +178,6 @@
 svg.leaflet-zoom-animated {
 	will-change: transform;
 }
-
 .leaflet-zoom-anim .leaflet-zoom-animated {
 	-webkit-transition: -webkit-transform 0.25s cubic-bezier(0,0,0.25,1);
 	   -moz-transition:    -moz-transform 0.25s cubic-bezier(0,0,0.25,1);
@@ -212,14 +189,9 @@ svg.leaflet-zoom-animated {
 	   -moz-transition: none;
 	        transition: none;
 	}
-
 .leaflet-zoom-anim .leaflet-zoom-hide {
 	visibility: hidden;
 	}
-
-
-/* cursors */
-
 .leaflet-interactive {
 	cursor: pointer;
 	}
@@ -244,8 +216,6 @@ svg.leaflet-zoom-animated {
 	cursor:    -moz-grabbing;
 	cursor:         grabbing;
 	}
-
-/* marker & overlays interactivity */
 .leaflet-marker-icon,
 .leaflet-marker-shadow,
 .leaflet-image-layer,
@@ -253,17 +223,13 @@ svg.leaflet-zoom-animated {
 .leaflet-tile-container {
 	pointer-events: none;
 	}
-
 .leaflet-marker-icon.leaflet-interactive,
 .leaflet-image-layer.leaflet-interactive,
 .leaflet-pane > svg path.leaflet-interactive,
 svg.leaflet-image-layer.leaflet-interactive path {
-	pointer-events: visiblePainted; /* IE 9-10 doesn't have auto */
+	pointer-events: visiblePainted;
 	pointer-events: auto;
 	}
-
-/* visual tweaks */
-
 .leaflet-container {
 	background: #ddd;
 	outline-offset: 1px;
@@ -275,19 +241,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
 	border: 2px dotted #38f;
 	background: rgba(255,255,255,0.5);
 	}
-
-
-/* general typography */
 .leaflet-container {
 	font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
 	font-size: 12px;
 	font-size: 0.75rem;
 	line-height: 1.5;
 	}
-
-
-/* general toolbar styles */
-
 .leaflet-bar {
 	box-shadow: 0 1px 5px rgba(0,0,0,0.65);
 	border-radius: 4px;
@@ -327,7 +286,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
 	background-color: #f4f4f4;
 	color: #bbb;
 	}
-
 .leaflet-touch .leaflet-bar a {
 	width: 30px;
 	height: 30px;
@@ -341,22 +299,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
 	border-bottom-left-radius: 2px;
 	border-bottom-right-radius: 2px;
 	}
-
-/* zoom control */
-
 .leaflet-control-zoom-in,
 .leaflet-control-zoom-out {
 	font: bold 18px 'Lucida Console', Monaco, monospace;
 	text-indent: 1px;
 	}
-
 .leaflet-touch .leaflet-control-zoom-in, .leaflet-touch .leaflet-control-zoom-out  {
 	font-size: 22px;
 	}
-
-
-/* layers control */
-
 .leaflet-control-layers {
 	box-shadow: 0 1px 5px rgba(0,0,0,0.4);
 	background: #fff;
@@ -408,15 +358,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
 	border-top: 1px solid #ddd;
 	margin: 5px -10px 5px -6px;
 	}
-
-/* Default icon URLs */
-.leaflet-default-icon-path { /* used only in path-guessing heuristic, see L.Icon.Default */
+.leaflet-default-icon-path {
 	background-image: url(images/marker-icon.png);
 	}
-
-
-/* attribution and scale controls */
-
 .leaflet-container .leaflet-control-attribution {
 	background: #fff;
 	background: rgba(255, 255, 255, 0.8);
@@ -466,7 +410,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .leaflet-control-scale-line:not(:first-child):not(:last-child) {
 	border-bottom: 2px solid #777;
 	}
-
 .leaflet-touch .leaflet-control-attribution,
 .leaflet-touch .leaflet-control-layers,
 .leaflet-touch .leaflet-bar {
@@ -477,10 +420,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
 	border: 2px solid rgba(0,0,0,0.2);
 	background-clip: padding-box;
 	}
-
-
-/* popup */
-
 .leaflet-popup {
 	position: absolute;
 	text-align: center;
@@ -516,10 +455,8 @@ svg.leaflet-image-layer.leaflet-interactive path {
 	width: 17px;
 	height: 17px;
 	padding: 1px;
-
 	margin: -10px auto 0;
 	pointer-events: auto;
-
 	-webkit-transform: rotate(45deg);
 	   -moz-transform: rotate(45deg);
 	    -ms-transform: rotate(45deg);
@@ -551,36 +488,25 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .leaflet-popup-scrolled {
 	overflow: auto;
 	}
-
 .leaflet-oldie .leaflet-popup-content-wrapper {
 	-ms-zoom: 1;
 	}
 .leaflet-oldie .leaflet-popup-tip {
 	width: 24px;
 	margin: 0 auto;
-
 	-ms-filter: "progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678)";
 	filter: progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678);
 	}
-
 .leaflet-oldie .leaflet-control-zoom,
 .leaflet-oldie .leaflet-control-layers,
 .leaflet-oldie .leaflet-popup-content-wrapper,
 .leaflet-oldie .leaflet-popup-tip {
 	border: 1px solid #999;
 	}
-
-
-/* div icon */
-
 .leaflet-div-icon {
 	background: #fff;
 	border: 1px solid #666;
 	}
-
-
-/* Tooltip */
-/* Base styles for the element that has a tooltip */
 .leaflet-tooltip {
 	position: absolute;
 	padding: 6px;
@@ -610,9 +536,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
 	background: transparent;
 	content: "";
 	}
-
-/* Directions */
-
 .leaflet-tooltip-bottom {
 	margin-top: 6px;
 }
@@ -656,17 +579,12 @@ svg.leaflet-image-layer.leaflet-interactive path {
 	margin-left: -12px;
 	border-right-color: #fff;
 	}
-
-/* Printing */
-
 @media print {
-	/* Prevent printers from removing background-images of controls. */
 	.leaflet-control {
 		-webkit-print-color-adjust: exact;
 		print-color-adjust: exact;
 		}
 	}
-
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -726,15 +644,16 @@ svg.leaflet-image-layer.leaflet-interactive path {
   }
 	#titlePanel h1{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:22px;margin:0;line-height:1.15;letter-spacing:-0.01em;
   }
-	#titlePanel p{display:block;margin:3px 0 0;color:#C5D2E0;font-size:12px;line-height:1.2;}
-	.brandBlock{display:flex;align-items:center;gap:9px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:20px;letter-spacing:.01em;color:#fff;}
-	.brandMark{display:grid;place-items:center;width:28px;height:28px;border:1px solid #7ED8BE;border-radius:50%;color:#A9E8D3;font-size:16px;line-height:1;}
-	.brandBlock small{display:block;margin-top:2px;color:#A9E8D3;font-size:10px;font-weight:500;letter-spacing:.04em;}
-	.locationBlock{text-align:right;color:#D9E4EF;font-size:12px;line-height:1.45;}
-	.locationBlock strong{display:block;color:#fff;font-family:'Space Grotesk',sans-serif;font-size:13px;}
-	.prototypePill{display:inline-block;margin-bottom:4px;padding:3px 8px;border:1px solid #7ED8BE;border-radius:999px;color:#A9E8D3;font-size:10px;font-weight:600;letter-spacing:.04em;}
+  #titlePanel p{ margin:0;font-size:13px;color:var(--text-lo);line-height:1.5; }
 
-	#legend{top:112px;left:18px;padding:12px 14px;border-radius:6px;width:190px;background:#fff;border:1px solid #D8E0EA;box-shadow:0 4px 14px rgba(16,42,67,.14);}
+  #topRow{
+    position:absolute; top:18px; left:380px; z-index:500;
+    display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start;
+    max-width: calc(100% - 400px);
+  }
+  #topRow .console{ position:static; }
+
+  #legend{ padding:14px 18px;border-radius:2px;width:210px; }
   #legend .label{
     font-family:'Space Grotesk',sans-serif;font-size:11px;letter-spacing:0.1em;
 	color:#60758A;margin-bottom:10px;font-weight:600;
@@ -753,6 +672,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 	#modelInfo strong,#howTo strong{color:#17324D;font-weight:600;}
 
   #gaugeToggle{
+    padding:10px 14px;border-radius:2px;
 		top:101px;right:18px;left:auto;padding:9px 12px;border-radius:6px;background:#fff;color:#17324D;border:1px solid #D8E0EA;box-shadow:0 4px 14px rgba(16,42,67,.14);
     display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none;font-size:13px;
   }
@@ -765,6 +685,30 @@ svg.leaflet-image-layer.leaflet-interactive path {
   #gaugeToggle .box.on svg{display:block;}
 	#gaugeToggle span.txt{color:#17324D;}
 
+  #riskReadout{ padding:14px 18px;border-radius:2px;width:190px; }
+  .riskRow{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;font-size:13px;}
+  .riskRow:last-child{margin-bottom:0;}
+  .riskLbl{color:var(--text-lo);}
+  .riskVal{font-family:'Space Mono',monospace;font-weight:600;font-size:15px;}
+  .riskTrend{font-family:'Space Mono',monospace;font-size:12px;color:var(--text-hi);}
+
+  #routePanel{ padding:14px 18px;border-radius:2px;width:220px; }
+  .routeBtn{
+    width:100%;padding:8px 12px;border-radius:3px;border:1px solid var(--border);
+    background:var(--panel-2);color:var(--text-hi);cursor:pointer;font-size:13px;
+    font-family:'Source Sans 3',sans-serif;margin-top:8px;
+  }
+  .routeBtn:hover{border-color:var(--rain);}
+  .routeBtn.active{border-color:var(--rain);background:var(--rain);color:var(--ink);}
+  .routeClear{background:transparent;border-color:var(--d-severe);color:var(--d-severe);}
+  .routeStatus{font-size:12px;color:var(--text-lo);margin-top:8px;line-height:1.4;min-height:16px;}
+  .routeStatus.warn{color:var(--d-severe);font-weight:600;}
+  .routeStatus.ok{color:var(--live);}
+
+  #controlBar{
+    left:50%;bottom:22px;transform:translateX(-50%);
+    padding:16px 26px;border-radius:3px;
+    display:flex;align-items:center;gap:20px;min-width:560px;
 	#controlBar{left:50%;bottom:18px;transform:translateX(-50%);padding:12px 18px;border-radius:6px;display:flex;align-items:center;gap:16px;min-width:560px;background:#fff;border:1px solid #D8E0EA;box-shadow:0 4px 14px rgba(16,42,67,.16);
   }
   #playBtn{
@@ -850,6 +794,9 @@ svg.leaflet-image-layer.leaflet-interactive path {
   @media (max-width:640px){
 		#titlePanel{min-width:0;width:calc(100% - 150px);padding:10px 12px;}
     #titlePanel h1{font-size:16px;}
+    #topRow{ top:150px; left:18px; max-width:calc(100% - 36px); }
+    #legend{width:170px;}
+    #gaugeToggle{display:none;}
 		#legend{width:170px;top:150px;padding:10px 12px;}
 		#gaugeToggle{top:150px;right:18px;}
 		#summaryCard{top:94px;max-width:calc(100% - 36px);}
@@ -878,6 +825,34 @@ svg.leaflet-image-layer.leaflet-interactive path {
 	<div class="summaryItem"><span class="summaryLabel"><span class="cardIcon">⌖</span>Area</span><span class="summaryValue">Koramangala</span></div>
 </div>
 
+<div id="topRow">
+
+  <div id="legend" class="console">
+    <div class="label">PREDICTED DEPTH</div>
+    <div class="legend-row"><span class="swatch" style="background:var(--d-none)"></span><span class="lbl">No flooding</span><span class="rng">0 cm</span></div>
+    <div class="legend-row"><span class="swatch" style="background:var(--d-minor)"></span><span class="lbl">Minor</span><span class="rng">1–10</span></div>
+    <div class="legend-row"><span class="swatch" style="background:var(--d-mod)"></span><span class="lbl">Moderate</span><span class="rng">11–20</span></div>
+    <div class="legend-row"><span class="swatch" style="background:var(--d-severe)"></span><span class="lbl">Severe</span><span class="rng">21–28</span></div>
+    <div class="legend-row"><span class="swatch" style="background:var(--d-impass)"></span><span class="lbl">Impassable</span><span class="rng">29+</span></div>
+  </div>
+
+  <div id="gaugeToggle" class="console">
+    <div class="box" id="gaugeBox"><svg viewBox="0 0 10 10"><path d="M1 5L4 8L9 1" stroke="#0A1220" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <span class="txt">Rain gauges</span>
+  </div>
+
+  <div id="riskReadout" class="console">
+    <div class="label">CURRENT CONDITIONS</div>
+    <div class="riskRow"><span class="riskLbl">Peak risk score</span><span class="riskVal" id="riskScoreVal">--</span></div>
+    <div class="riskRow"><span class="riskLbl">Trend</span><span class="riskTrend" id="riskTrendVal">--</span></div>
+  </div>
+
+  <div id="routePanel" class="console">
+    <div class="label">FLOOD-AWARE ROUTING</div>
+    <button id="routeModeBtn" class="routeBtn">Click to plan a route</button>
+    <div id="routeStatus" class="routeStatus"></div>
+    <button id="routeClearBtn" class="routeBtn routeClear" style="display:none;">Clear route</button>
+  </div>
 <div id="legend" class="console">
 	<div class="label">RISK LEVEL</div>
 	<div class="legend-row"><span class="swatch" style="background:#4FD1A5"></span><span class="lbl">Low</span><span class="rng">0–0.25</span></div>
@@ -914,9 +889,6 @@ svg.leaflet-image-layer.leaflet-interactive path {
 	<ul><li>GIS susceptibility combines terrain, slope, imperviousness and drain distance.</li><li>Rainfall multiplier changes the relative risk score over time.</li><li>Drainage proximity contributes to the base risk using existing drain data.</li><li>This is for planning awareness, not actual flood-depth prediction.</li></ul>
 </div>
 
-<div id="gaugeToggle" class="console">
-  <div class="box" id="gaugeBox"><svg viewBox="0 0 10 10"><path d="M1 5L4 8L9 1" stroke="#0A1220" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-  <span class="txt">Rain gauges</span>
 </div>
 
 <div id="controlBar" class="console">
@@ -937,7 +909,72 @@ svg.leaflet-image-layer.leaflet-interactive path {
 <div id="loadTag">SEGMENTS: 159 &nbsp;·&nbsp; STEPS: 4 (T+0→T+3h) &nbsp;·&nbsp; WARD: KORAMANGALA</div>
 <div id="footer"><span>JalDrishti | Smart Cities, Safer Communities</span><span class="footerRight">Data-driven | People-centric | Flood Resilient Bengaluru</span></div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+const BACKEND_URL = 'http://127.0.0.1:8000';
+const ROUTING_BACKEND_URL = 'http://127.0.0.1:8001';
+const WARD_ID = 'koramangala';
+
+const REAL_TIMESTAMPS = [
+  "2026-09-07T15:00:00", "2026-09-07T15:15:00", "2026-09-07T15:30:00",
+  "2026-09-07T15:45:00", "2026-09-07T16:00:00", "2026-09-07T16:15:00",
+  "2026-09-07T16:30:00", "2026-09-07T16:45:00", "2026-09-07T17:00:00",
+  "2026-09-07T17:15:00", "2026-09-07T17:30:00", "2026-09-07T17:45:00",
+];
+
+let DATA = null;
+let FLOOD_POINTS = [];
+
+let routeMode = false;
+let routeStart = null;
+let routeEnd = null;
+
+function setRouteStatus(text, cls) {
+  const el = document.getElementById('routeStatus');
+  el.textContent = text;
+  el.className = 'routeStatus' + (cls ? ' ' + cls : '');
+}
+
+async function fetchAllRiskData() {
+  const promises = REAL_TIMESTAMPS.map(ts =>
+    fetch(`${BACKEND_URL}/api/v1/risk?ward_id=${WARD_ID}&timestamp=${encodeURIComponent(ts)}`)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status} for timestamp ${ts}`);
+        return r.json();
+      })
+  );
+  const results = await Promise.all(promises);
+  return results.map((resp, i) => ({
+    step: i,
+    timestamp: resp.timestamp,
+    segments: resp.segments,
+  }));
+}
+
+async function fetchFloodPoints() {
+  try {
+    const r = await fetch(`${BACKEND_URL}/api/v1/flood-points?ward_id=${WARD_ID}`);
+    if (!r.ok) return [];
+    const data = await r.json();
+    return data.points || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function showLoadingError(message) {
+  document.getElementById('map').innerHTML = '';
+  const errDiv = document.createElement('div');
+  errDiv.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:#EDF1F7;font-family:Source Sans 3,sans-serif;padding:24px;text-align:center;';
+  errDiv.innerHTML = `
+    <div style="font-size:18px;font-weight:600;">Can't reach the backend</div>
+    <div style="color:#8493AD;max-width:400px;">${message}</div>
+    <div style="color:#8493AD;font-size:13px;margin-top:8px;">
+      Make sure the backend is running:<br>
+      <code style="background:#131F36;padding:2px 8px;border-radius:3px;">uvicorn main:app --reload</code>
+    </div>`;
+  document.getElementById('map').appendChild(errDiv);
+}
 /* @preserve
  * Leaflet 1.9.4, a JS library for interactive maps. https://leafletjs.com
  * (c) 2010-2023 Vladimir Agafonkin, (c) 2010-2011 CloudMade
@@ -971,6 +1008,244 @@ function weightForRisk(score){
 	return 9;
 }
 
+let previousMaxRisk = null;
+
+function updateRiskReadout(segments) {
+  const maxRisk = Math.max(...segments.map(s => s.risk_score));
+  const el = document.getElementById('riskScoreVal');
+  const trendEl = document.getElementById('riskTrendVal');
+  if (!el || !trendEl) return;
+
+  el.textContent = maxRisk.toFixed(2);
+  el.style.color = colorForDepth(maxRisk * 30);
+
+  if (previousMaxRisk !== null) {
+    const diff = maxRisk - previousMaxRisk;
+    if (diff > 0.01) trendEl.textContent = '▲ rising';
+    else if (diff < -0.01) trendEl.textContent = '▼ falling';
+    else trendEl.textContent = '— steady';
+  } else {
+    trendEl.textContent = '— start';
+  }
+  previousMaxRisk = maxRisk;
+}
+
+async function initDashboard() {
+  let steps;
+  try {
+    steps = await fetchAllRiskData();
+  } catch (e) {
+    showLoadingError(e.message);
+    return;
+  }
+  FLOOD_POINTS = await fetchFloodPoints();
+  DATA = { steps };
+
+  const allLats = [], allLngs = [];
+  DATA.steps[0].segments.forEach(s => s.geometry.forEach(([lng,lat]) => { allLats.push(lat); allLngs.push(lng); }));
+  const centerLat = allLats.reduce((a,b)=>a+b,0)/allLats.length;
+  const centerLng = allLngs.reduce((a,b)=>a+b,0)/allLngs.length;
+
+  const map = L.map('map', {
+    zoomControl:false, attributionControl:true,
+    minZoom:13, maxZoom:19
+  }).setView([centerLat, centerLng], 16);
+  L.control.zoom({position:'bottomright'}).addTo(map);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    subdomains: 'abc', maxZoom: 19
+  }).addTo(map);
+
+  let segLayers = DATA.steps.map(stepData => {
+    const layer = L.layerGroup();
+    stepData.segments.forEach(seg => {
+      const latlngs = seg.geometry.map(([lng,lat]) => [lat,lng]);
+      const line = L.polyline(latlngs, {
+        color: colorForDepth(seg.predicted_depth_cm),
+        weight: weightForDepth(seg.predicted_depth_cm),
+        opacity: 0.92,
+        lineCap: 'round'
+      });
+      line.bindPopup(
+        '<div class="popTitle">Segment ' + seg.segment_id.replace('seg_0','#') + '</div>' +
+        '<div class="popRow"><span>Predicted depth</span><b>' + seg.predicted_depth_cm.toFixed(1) + ' cm</b></div>' +
+        '<div class="popRow"><span>Risk score</span><b>' + seg.risk_score.toFixed(2) + '</b></div>' +
+        '<div class="popRow"><span>Confidence</span><b>' + Math.round(seg.confidence*100) + '%</b></div>'
+      );
+      line.addTo(layer);
+    });
+    return layer;
+  });
+
+  let floodPointsLayer = L.layerGroup();
+  let routeLayerGroup = L.layerGroup().addTo(map);
+
+  function clearRoute() {
+    routeStart = null;
+    routeEnd = null;
+    routeLayerGroup.clearLayers();
+    setRouteStatus('');
+    document.getElementById('routeClearBtn').style.display = 'none';
+    document.getElementById('routeModeBtn').textContent = 'Click to plan a route';
+    document.getElementById('routeModeBtn').classList.remove('active');
+    routeMode = false;
+  }
+
+  async function fetchAndDrawRoute() {
+    if (!routeStart || !routeEnd) return;
+    setRouteStatus('Computing routes...');
+
+    const currentTimestep = DATA.steps[currentStep].timestamp;
+    const url = `${ROUTING_BACKEND_URL}/route?start_lat=${routeStart.lat}&start_lon=${routeStart.lng}&end_lat=${routeEnd.lat}&end_lon=${routeEnd.lng}&timestep=${encodeURIComponent(currentTimestep)}`;
+
+    try {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const geojson = await r.json();
+
+      routeLayerGroup.eachLayer(l => {
+        if (l._isRouteLine) routeLayerGroup.removeLayer(l);
+      });
+
+      geojson.features.forEach(feature => {
+        const isShortest = feature.properties.route_type === 'shortest';
+        const latlngs = feature.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+        const line = L.polyline(latlngs, {
+          color: feature.properties.color,
+          weight: isShortest ? 4 : 5,
+          dashArray: isShortest ? '8,6' : null,
+          opacity: 0.9,
+        });
+        line._isRouteLine = true;
+        line.bindPopup(
+          `<div class="popTitle">${isShortest ? 'Shortest route' : 'Safe route'}</div>` +
+          `<div class="popRow"><span>Cost</span><b>${feature.properties.route_cost.toFixed(0)} m</b></div>`
+        );
+        line.addTo(routeLayerGroup);
+      });
+
+      if (geojson.meta.safe_route_available === false) {
+        setRouteStatus('No safe route available - all paths blocked by flooding', 'warn');
+      } else if (geojson.meta.avoided_segments && geojson.meta.avoided_segments.length > 0) {
+        setRouteStatus(`Safe route avoids ${geojson.meta.avoided_segments.length} flooded segment(s)`, 'ok');
+      } else {
+        setRouteStatus('No flooding on this route', 'ok');
+      }
+    } catch (e) {
+      setRouteStatus("Can't reach routing backend (port 8001). Is it running?", 'warn');
+    }
+  }
+
+  document.getElementById('routeModeBtn').addEventListener('click', () => {
+    if (routeMode) { clearRoute(); return; }
+    routeMode = true;
+    routeStart = null;
+    routeEnd = null;
+    routeLayerGroup.clearLayers();
+    document.getElementById('routeModeBtn').textContent = 'Click map: set start point';
+    document.getElementById('routeModeBtn').classList.add('active');
+    setRouteStatus('Click anywhere on the map to set your start point.');
+  });
+
+  document.getElementById('routeClearBtn').addEventListener('click', clearRoute);
+
+  map.on('click', (e) => {
+    if (!routeMode) return;
+    if (!routeStart) {
+      routeStart = e.latlng;
+      L.marker(e.latlng, { icon: L.divIcon({className:'', html:'<div style="width:14px;height:14px;border-radius:50%;background:#2563eb;border:2px solid white;"></div>'}) }).addTo(routeLayerGroup);
+      document.getElementById('routeModeBtn').textContent = 'Click map: set end point';
+      setRouteStatus('Now click your destination.');
+    } else if (!routeEnd) {
+      routeEnd = e.latlng;
+      L.marker(e.latlng, { icon: L.divIcon({className:'', html:'<div style="width:14px;height:14px;border-radius:50%;background:#16a34a;border:2px solid white;"></div>'}) }).addTo(routeLayerGroup);
+      document.getElementById('routeModeBtn').textContent = 'Route active';
+      document.getElementById('routeClearBtn').style.display = 'block';
+      routeMode = false;
+      document.getElementById('routeModeBtn').classList.remove('active');
+      fetchAndDrawRoute();
+    }
+  });
+
+  FLOOD_POINTS.forEach(f => {
+    const [lng, lat] = f.geometry.coordinates;
+    const marker = L.circleMarker([lat, lng], {
+      radius: 7, color: '#EDF1F7', weight: 1.5,
+      fillColor: getVar('--d-impass'), fillOpacity: 0.85
+    });
+    marker.bindPopup(
+      '<div class="popTitle">' + f.properties.Name + '</div>' +
+      '<div class="popRow"><span>Known flood point</span></div>' +
+      (f.properties.elevation ? '<div class="popRow"><span>Elevation</span><b>' + f.properties.elevation + ' m</b></div>' : '')
+    );
+    marker.addTo(floodPointsLayer);
+  });
+
+  let currentStep = 0;
+  segLayers[0].addTo(map);
+
+  function fmtClock(ts){
+    const d = new Date(ts);
+    return d.toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', hour12:false, timeZone:'Asia/Kolkata'}) + ' IST';
+  }
+  const startTime = new Date(DATA.steps[0].timestamp);
+  const horizonLabels = DATA.steps.map(s => {
+    const mins = Math.round((new Date(s.timestamp) - startTime) / 60000);
+    return mins === 0 ? 'T+0' : `T+${mins}m`;
+  });
+
+  function setStep(i){
+    segLayers[currentStep].remove();
+    currentStep = i;
+    segLayers[currentStep].addTo(map);
+    document.getElementById('timeSlider').value = i;
+    document.getElementById('horizonLabel').textContent = horizonLabels[i];
+    document.getElementById('clockLabel').textContent = fmtClock(DATA.steps[i].timestamp);
+    updateRiskReadout(DATA.steps[i].segments);
+    if (routeStart && routeEnd) { fetchAndDrawRoute(); }
+  }
+  setStep(0);
+
+  const slider = document.getElementById('timeSlider');
+  slider.max = DATA.steps.length - 1;
+  slider.addEventListener('input', e => setStep(parseInt(e.target.value)));
+
+  let floodPointsOn = false;
+  const fpToggle = document.getElementById('gaugeToggle');
+  if (fpToggle) {
+    document.querySelector('#gaugeToggle .txt').textContent = 'Known flood points';
+    fpToggle.addEventListener('click', () => {
+      floodPointsOn = !floodPointsOn;
+      document.getElementById('gaugeBox').classList.toggle('on', floodPointsOn);
+      if(floodPointsOn){ floodPointsLayer.addTo(map); } else { floodPointsLayer.remove(); }
+    });
+  }
+
+  let playing = false, playTimer = null;
+  document.getElementById('playBtn').addEventListener('click', () => {
+    playing = !playing;
+    document.getElementById('playIcon').style.display = playing ? 'none' : 'block';
+    document.getElementById('pauseIcon').style.display = playing ? 'block' : 'none';
+    if(playing){
+      playTimer = setInterval(() => {
+        let next = currentStep + 1;
+        if(next >= DATA.steps.length){ next = 0; }
+        setStep(next);
+      }, 2200);
+    } else {
+      clearInterval(playTimer);
+    }
+  });
+
+  document.getElementById('loadTag').textContent =
+    `SEGMENTS: ${DATA.steps[0].segments.length} · WARD: ${WARD_ID.toUpperCase()} · LIVE FROM BACKEND`;
+
+  window.addEventListener('resize', () => map.invalidateSize());
+  setTimeout(() => map.invalidateSize(), 300);
+}
+
+initDashboard();
 /* ── Map initialisation ─────────────────────────────────────────────────── */
 const WARD_CENTER = [12.935, 77.634];
 const WARD_BOUNDARY = {type:'Polygon',coordinates:[[[77.629654,12.934411],[77.626022,12.938411],[77.625395,12.939833],[77.625865,12.940294],[77.627031,12.940657],[77.626901,12.941385],[77.626137,12.941791],[77.626002,12.943001],[77.625649,12.94355],[77.625951,12.943748],[77.624809,12.945467],[77.623827,12.946171],[77.623696,12.947296],[77.622004,12.949195],[77.620761,12.950039],[77.618556,12.945928],[77.62269,12.942493],[77.620263,12.940521],[77.619214,12.939096],[77.618574,12.937761],[77.621984,12.935683],[77.622278,12.936081],[77.624089,12.934912],[77.623123,12.933091],[77.619981,12.925488],[77.620269,12.925127],[77.62023,12.924759],[77.621056,12.924167],[77.620804,12.924007],[77.621231,12.923281],[77.620184,12.922747],[77.62,12.923081],[77.619258,12.922709],[77.620262,12.921086],[77.623001,12.922762],[77.62908,12.924164],[77.636765,12.925339],[77.639278,12.924137],[77.639166,12.925843],[77.639738,12.926032],[77.641096,12.925967],[77.641321,12.926164],[77.64187,12.928211],[77.641901,12.929255],[77.639579,12.929686],[77.639523,12.930556],[77.638812,12.930904],[77.635679,12.934948],[77.634443,12.934587],[77.63385,12.933683],[77.633067,12.934435],[77.632743,12.934122],[77.631073,12.935611],[77.629654,12.934411]]]};

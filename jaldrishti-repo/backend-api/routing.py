@@ -10,7 +10,6 @@ This file contains:
 routing_api.py loads the flood-risk JSON, maps its risk scores onto
 OSM road edges, then calls compute_route() from this file.
 """
-
 import heapq
 
 import osmnx as ox
@@ -18,27 +17,19 @@ import osmnx as ox
 from routing import compute_route, load_osm_graph
 
 def load_osm_graph(
-    place_name="Koramangala, Bengaluru, India",
+    center_lat=12.935,
+    center_lon=77.627,
+    dist_meters=3000,
 ):
-    """
-    Download the actual driving-road graph from OpenStreetMap.
-
-    OSMnx node coordinate keys:
-    - node["x"] = longitude
-    - node["y"] = latitude
-
-    OSMnx edge key:
-    - edge["length"] = road length in metres
-    """
-    graph = ox.graph_from_place(
-        place_name,
+    
+    graph = ox.graph_from_point(
+        (center_lat, center_lon),
+        dist=dist_meters,
+        dist_type="bbox",
         network_type="drive",
     )
 
-    for _, _, _, edge_data in graph.edges(
-        keys=True,
-        data=True,
-    ):
+    for _, _, _, edge_data in graph.edges(keys=True, data=True):
         edge_data["risk_score"] = 0.0
 
     return graph
